@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>react-morse-audio Demo</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #1a1a2e;
+        color: #eee;
+      }
+      h1, h2 {
+        color: #00d9ff;
+      }
+      .demo-section {
+        background: #16213e;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+      }
+      input[type="text"],
+      input[type="number"] {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #333;
+        border-radius: 4px;
+        background: #0f0f23;
+        color: #eee;
+        font-size: 16px;
+      }
+      input[type="range"] {
+        width: 100%;
+        margin-bottom: 15px;
+      }
+      button {
+        background: #00d9ff;
+        color: #1a1a2e;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        margin-right: 10px;
+        margin-bottom: 10px;
+      }
+      button:hover {
+        background: #00b8d9;
+      }
+      button:disabled {
+        background: #444;
+        cursor: not-allowed;
+      }
+      .status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-weight: 500;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+      .status-idle { background: #444; }
+      .status-loading { background: #f39c12; color: #000; }
+      .status-ready { background: #27ae60; }
+      .status-playing { background: #e74c3c; }
+      .status-completed { background: #9b59b6; }
+      .status-error { background: #c0392b; }
+      .value-display {
+        color: #00d9ff;
+        font-weight: 600;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
