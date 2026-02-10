@@ -4,12 +4,18 @@
   "type": "module",
   "workspaces": [
     "packages/*",
-    "demo"
+    "demo",
+    "apps/*"
   ],
   "scripts": {
     "build": "npm run build -ws --if-present",
     "build:demo": "vite build",
+    "build:contest": "npm run build -w contest-runner",
+    "build:rufzjs": "npm run build -w rufzjs",
+    "build:apps": "npm run build:demo && npm run build:contest && npm run build:rufzjs",
     "dev": "vite",
+    "dev:contest": "npm run dev -w contest-runner",
+    "dev:rufzjs": "npm run dev -w rufzjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

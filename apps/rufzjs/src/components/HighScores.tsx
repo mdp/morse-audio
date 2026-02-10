@@ -1,0 +1,64 @@
+import { HighScoreEntry } from '../types';
+
+interface HighScoresProps {
+  scores: HighScoreEntry[];
+  onClose: () => void;
+  onClear: () => void;
+}
+
+export function HighScores({ scores, onClose, onClear }: HighScoresProps) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal high-scores-modal" onClick={(e) => e.stopPropagation()}>
+        <h2>High Scores</h2>
+
+        {scores.length === 0 ? (
+          <p className="no-scores">No high scores yet. Play a game to set one!</p>
+        ) : (
+          <table className="high-scores-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Score</th>
+                <th>Call</th>
+                <th>Peak WPM</th>
+                <th>Accuracy</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scores.map((entry, i) => (
+                <tr key={i} className={!entry.complete ? 'incomplete' : ''}>
+                  <td>{i + 1}</td>
+                  <td className="score">{entry.score.toLocaleString()}</td>
+                  <td>{entry.callsign || '-'}</td>
+                  <td>{entry.peakSpeed}</td>
+                  <td>{entry.accuracy.toFixed(0)}%</td>
+                  <td>{new Date(entry.date).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        <div className="modal-actions">
+          <button className="primary-button" onClick={onClose}>
+            Close
+          </button>
+          {scores.length > 0 && (
+            <button
+              className="danger-button"
+              onClick={() => {
+                if (confirm('Clear all high scores?')) {
+                  onClear();
+                }
+              }}
+            >
+              Clear All
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

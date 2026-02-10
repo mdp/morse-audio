@@ -2,12 +2,22 @@
 
 A monorepo containing two packages for generating and playing morse code audio in JavaScript/TypeScript applications.
 
+## Features
+
+- **Pre-rendered audio**: Generate complete WAV files as base64 data URIs
+- **Real-time streaming**: Web Audio API engine for live contest simulation
+- **Radio effects**: QRN (static), QSB (fading), Rayleigh fading, flutter, chirp, AC hum
+- **Pileup simulation**: Mix multiple stations with different frequencies and signal strengths
+- **Farnsworth timing**: Adjustable character vs word spacing for learning
+- **Prosign support**: `<AR>`, `<SK>`, `<BT>`, `<SOS>`, etc.
+- **Zero dependencies**: Core library has no external dependencies
+
 ## Packages
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| [`morse-audio`](./packages/morse-audio) | Core library for generating morse code WAV audio | `npm install morse-audio` |
-| [`react-morse-audio`](./packages/react-morse-audio) | React component and hook for morse code playback | `npm install react-morse-audio` |
+| [`morse-audio`](./packages/morse-audio) | Core library for generating morse code audio | `npm install morse-audio` |
+| [`react-morse-audio`](./packages/react-morse-audio) | React component and hooks for morse playback | `npm install react-morse-audio` |
 
 ## Quick Start
 
@@ -21,7 +31,7 @@ npm install react-morse-audio
 import { MorseAudio } from 'react-morse-audio';
 
 function App() {
-  return <MorseAudio text="CQ CQ CQ" wpm={20} />;
+  return <MorseAudio text="CQ CQ CQ" wpm={20} autoPlay />;
 }
 ```
 
@@ -43,6 +53,76 @@ const { dataUri, timings } = generateMorseAudio({
 const audio = new Audio(dataUri);
 audio.play();
 ```
+
+### Contest Simulator (Real-time Streaming)
+
+```tsx
+import { useContestAudio } from 'react-morse-audio';
+
+function ContestSimulator() {
+  const { start, stop, isRunning, playStation, playSidetone, setQRN } = useContestAudio({
+    qrn: { snr: 15 },
+    bandwidth: 500,
+  });
+
+  return (
+    <div>
+      <button onClick={isRunning ? stop : start}>
+        {isRunning ? 'Stop' : 'Start'} Engine
+      </button>
+
+      <button onClick={() => playStation({
+        text: 'W1ABC',
+        wpm: 25,
+        frequencyOffset: -100,
+        signalStrength: -6,
+        effects: { rayleigh: { bandwidth: 0.5, depth: 0.5 } },
+      })}>
+        Play Station
+      </button>
+
+      <button onClick={() => playSidetone({ text: 'TU', wpm: 25 })}>
+        Send Sidetone
+      </button>
+    </div>
+  );
+}
+```
+
+---
+
+## Contest Simulator / Streaming Audio
+
+The streaming engine provides real-time audio for contest simulation:
+
+- **Continuous QRN**: Band noise plays without stopping
+- **Dynamic station injection**: Play stations with realistic HF effects
+- **Clean sidetone**: Your own sending is loud and clear (no noise)
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Web Audio API Graph                        │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐                                           │
+│  │  QRN Worklet │──┐                                        │
+│  │  (continuous)│  │    ┌─────────────┐                     │
+│  └──────────────┘  ├───▶│receiverGain │──┐                  │
+│                    │    └─────────────┘  │  ┌────────────┐  │
+│  ┌──────────────┐  │                     ├─▶│ masterGain │─▶│ Speakers
+│  │ Station Audio│──┘                     │  └────────────┘  │
+│  └──────────────┘                        │                  │
+│                        ┌─────────────┐   │                  │
+│  ┌──────────────┐      │sidetoneGain │───┘                  │
+│  │   Sidetone   │─────▶│ (clean/loud)│                      │
+│  └──────────────┘      └─────────────┘                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The sidetone bypasses the receiver path because in a real radio, your own sending comes from the local oscillator - not through the receiver with all its noise.
+
+See [STREAMING_ARCHITECTURE.md](./packages/morse-audio/STREAMING_ARCHITECTURE.md) for detailed technical documentation.
 
 ---
 

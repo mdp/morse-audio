@@ -1,7 +1,7 @@
 {
   "name": "react-morse-audio",
-  "version": "1.0.0",
-  "description": "React component and hook for playing morse code audio",
+  "version": "1.1.0",
+  "description": "React components and hooks for morse code audio with contest simulation",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -30,7 +30,7 @@
     "react-dom": ">=16.8.0"
   },
   "dependencies": {
-    "morse-audio": "*"
+    "morse-audio": "^1.1.0"
   },
   "keywords": [
     "react",
@@ -39,13 +39,25 @@
     "audio",
     "cw",
     "ham-radio",
+    "amateur-radio",
     "hook",
-    "component"
+    "component",
+    "web-audio",
+    "streaming",
+    "contest",
+    "pileup",
+    "sidetone",
+    "radio-effects"
   ],
-  "author": "",
+  "author": "Mark Percival <m@mdp.im>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mdp/morse-audio.git"
+    "url": "git+https://github.com/mdp/morse-audio.git",
+    "directory": "packages/react-morse-audio"
+  },
+  "homepage": "https://github.com/mdp/morse-audio#readme",
+  "bugs": {
+    "url": "https://github.com/mdp/morse-audio/issues"
   }
 }

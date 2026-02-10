@@ -39,6 +39,51 @@ export const MIN_FADE_RATE = 0.05; // 20 sec period
 export const MAX_FADE_RATE = 2.0; // 0.5 sec period
 export const DEFAULT_FADE_RATE = 0.2; // 5 sec period
 
+// Pileup constants
+
+// Rayleigh fading constraints
+export const MIN_RAYLEIGH_BANDWIDTH = 0.1; // Hz (very slow fading)
+export const MAX_RAYLEIGH_BANDWIDTH = 2.0; // Hz (fast fading)
+export const DEFAULT_RAYLEIGH_BANDWIDTH = 0.5;
+export const MIN_RAYLEIGH_DEPTH = 0;
+export const MAX_RAYLEIGH_DEPTH = 1;
+export const DEFAULT_RAYLEIGH_DEPTH = 0.7;
+
+// Flutter constraints
+export const MIN_FLUTTER_RATE = 10; // Hz
+export const MAX_FLUTTER_RATE = 30; // Hz
+export const DEFAULT_FLUTTER_RATE = 15;
+export const MIN_FLUTTER_DEPTH = 0;
+export const MAX_FLUTTER_DEPTH = 1;
+export const DEFAULT_FLUTTER_DEPTH = 0.5;
+
+// Chirp constraints
+export const MIN_CHIRP_DEVIATION = 5; // Hz
+export const MAX_CHIRP_DEVIATION = 50; // Hz
+export const DEFAULT_CHIRP_DEVIATION = 20;
+export const MIN_CHIRP_TIME_CONSTANT = 10; // ms
+export const MAX_CHIRP_TIME_CONSTANT = 100; // ms
+export const DEFAULT_CHIRP_TIME_CONSTANT = 30;
+
+// Buzz constraints
+export const MIN_BUZZ_AMPLITUDE = 0;
+export const MAX_BUZZ_AMPLITUDE = 0.3;
+export const DEFAULT_BUZZ_AMPLITUDE = 0.1;
+
+// Bandwidth filter constraints
+export const MIN_BANDWIDTH = 100; // Hz
+export const MAX_BANDWIDTH = 2400; // Hz
+export const DEFAULT_BANDWIDTH = 500; // Hz
+export const BANDWIDTH_STEP = 50; // Hz (common receiver increment)
+
+// Station constraints
+export const MAX_STATIONS = 8;
+export const MIN_FREQUENCY_OFFSET = -500; // Hz
+export const MAX_FREQUENCY_OFFSET = 500; // Hz
+export const MIN_SIGNAL_STRENGTH = -30; // dB relative to S9
+export const MAX_SIGNAL_STRENGTH = 20; // dB relative to S9
+export const DEFAULT_SIGNAL_STRENGTH = 0; // S9
+
 /**
  * Clamp a value between min and max
  */
@@ -101,4 +146,76 @@ export function validateFadeDepth(depth: number): number {
  */
 export function validateFadeRate(rate: number): number {
   return clamp(rate, MIN_FADE_RATE, MAX_FADE_RATE);
+}
+
+/**
+ * Validate and normalize Rayleigh fading bandwidth
+ */
+export function validateRayleighBandwidth(bandwidth: number): number {
+  return clamp(bandwidth, MIN_RAYLEIGH_BANDWIDTH, MAX_RAYLEIGH_BANDWIDTH);
+}
+
+/**
+ * Validate and normalize Rayleigh fading depth
+ */
+export function validateRayleighDepth(depth: number): number {
+  return clamp(depth, MIN_RAYLEIGH_DEPTH, MAX_RAYLEIGH_DEPTH);
+}
+
+/**
+ * Validate and normalize flutter rate
+ */
+export function validateFlutterRate(rate: number): number {
+  return clamp(rate, MIN_FLUTTER_RATE, MAX_FLUTTER_RATE);
+}
+
+/**
+ * Validate and normalize flutter depth
+ */
+export function validateFlutterDepth(depth: number): number {
+  return clamp(depth, MIN_FLUTTER_DEPTH, MAX_FLUTTER_DEPTH);
+}
+
+/**
+ * Validate and normalize chirp deviation
+ */
+export function validateChirpDeviation(deviation: number): number {
+  return clamp(deviation, MIN_CHIRP_DEVIATION, MAX_CHIRP_DEVIATION);
+}
+
+/**
+ * Validate and normalize chirp time constant
+ */
+export function validateChirpTimeConstant(timeConstant: number): number {
+  return clamp(timeConstant, MIN_CHIRP_TIME_CONSTANT, MAX_CHIRP_TIME_CONSTANT);
+}
+
+/**
+ * Validate and normalize buzz amplitude
+ */
+export function validateBuzzAmplitude(amplitude: number): number {
+  return clamp(amplitude, MIN_BUZZ_AMPLITUDE, MAX_BUZZ_AMPLITUDE);
+}
+
+/**
+ * Validate and normalize receiver bandwidth
+ */
+export function validateBandwidth(bandwidth: number): number {
+  // Round to nearest BANDWIDTH_STEP
+  const rounded = Math.round(bandwidth / BANDWIDTH_STEP) * BANDWIDTH_STEP;
+  return clamp(rounded, MIN_BANDWIDTH, MAX_BANDWIDTH);
+}
+
+/**
+ * Validate and normalize frequency offset
+ */
+export function validateFrequencyOffset(offset: number): number {
+  return clamp(offset, MIN_FREQUENCY_OFFSET, MAX_FREQUENCY_OFFSET);
+}
+
+/**
+ * Validate and normalize signal strength
+ */
+export function validateSignalStrength(strength: number): number {
+  return clamp(strength, MIN_SIGNAL_STRENGTH, MAX_SIGNAL_STRENGTH);
 }

@@ -57,21 +57,24 @@ class BiquadLowpass {
  * @param frequency - Tone frequency in Hz
  * @param sampleRate - Sample rate in Hz
  * @param rampDuration - Duration of attack/decay ramp in ms
+ * @param leadInMs - Silence padding at start for Bluetooth wake-up (ms)
  * @returns Float32Array of audio samples (-1 to 1)
  */
 export function generateSamples(
   timings: number[],
   frequency: number,
   sampleRate: number = DEFAULT_SAMPLE_RATE,
-  rampDuration: number = 10
+  rampDuration: number = 10,
+  leadInMs: number = 100
 ): Float32Array {
-  // Calculate total number of samples needed
-  let totalMs = 0;
+  // Calculate total number of samples needed (including lead-in padding)
+  let totalMs = leadInMs;
   for (const timing of timings) {
     totalMs += Math.abs(timing);
   }
 
   const totalSamples = Math.ceil((totalMs / 1000) * sampleRate);
+  const leadInSamples = Math.ceil((leadInMs / 1000) * sampleRate);
   const samples = new Float32Array(totalSamples);
 
   // Calculate ramp samples
@@ -83,8 +86,9 @@ export function generateSamples(
   const filter = new BiquadLowpass(Math.min(cutoffFreq, sampleRate / 4), sampleRate);
 
   // Generate raw envelope (1 = sound, 0 = silence)
+  // Start after lead-in padding (silence for Bluetooth wake-up)
   const envelope = new Float32Array(totalSamples);
-  let sampleIndex = 0;
+  let sampleIndex = leadInSamples; // Skip lead-in (already zero-filled)
 
   for (const timing of timings) {
     const duration = Math.abs(timing);
@@ -127,6 +131,25 @@ export function generateSamples(
       }
     }
     prevEnv = env;
+  }
+
+  // Apply fade-in at the very start of the buffer to prevent click
+  const fadeInSamples = Math.min(rampSamples, totalSamples);
+  for (let i = 0; i < fadeInSamples; i++) {
+    const t = i / fadeInSamples;
+    // Raised cosine fade-in
+    const fadeMultiplier = 0.5 * (1 - Math.cos(Math.PI * t));
+    smoothedEnvelope[i] *= fadeMultiplier;
+  }
+
+  // Apply fade-out at the very end of the buffer to prevent click
+  const fadeOutSamples = Math.min(rampSamples, totalSamples);
+  for (let i = 0; i < fadeOutSamples; i++) {
+    const idx = totalSamples - fadeOutSamples + i;
+    const t = i / fadeOutSamples;
+    // Raised cosine fade-out
+    const fadeMultiplier = 0.5 * (1 + Math.cos(Math.PI * t));
+    smoothedEnvelope[idx] *= fadeMultiplier;
   }
 
   // Generate sine wave modulated by smoothed envelope

@@ -1,7 +1,7 @@
 {
   "name": "morse-audio",
-  "version": "1.0.0",
-  "description": "Generate morse code audio - framework agnostic",
+  "version": "1.1.0",
+  "description": "Generate morse code audio with radio effects, pileup simulation, and real-time streaming",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -31,13 +31,28 @@
     "audio",
     "cw",
     "ham-radio",
+    "amateur-radio",
     "wav",
-    "generator"
+    "generator",
+    "web-audio",
+    "streaming",
+    "contest",
+    "pileup",
+    "qrn",
+    "qsb",
+    "fading",
+    "radio-effects",
+    "sidetone"
   ],
-  "author": "",
+  "author": "Mark Percival <m@mdp.im>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mdp/morse-audio.git"
+    "url": "git+https://github.com/mdp/morse-audio.git",
+    "directory": "packages/morse-audio"
+  },
+  "homepage": "https://github.com/mdp/morse-audio#readme",
+  "bugs": {
+    "url": "https://github.com/mdp/morse-audio/issues"
   }
 }

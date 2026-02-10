@@ -3,6 +3,7 @@ export { MorseAudio } from './MorseAudio';
 
 // Hooks
 export { useMorseAudio } from './useMorseAudio';
+export { useContestAudio } from './useContestAudio';
 
 // Types
 export type {
@@ -12,6 +13,11 @@ export type {
   UseMorseAudioOptions,
   UseMorseAudioReturn,
 } from './types';
+
+export type {
+  UseContestAudioOptions,
+  UseContestAudioReturn,
+} from './useContestAudio';
 
 // Re-export constants from morse-audio for convenience
 export {
@@ -48,4 +54,25 @@ export type {
   RadioEffectsOptions,
   QrnOptions,
   QsbOptions,
+} from 'morse-audio';
+
+// Re-export streaming types from morse-audio
+export {
+  createContestAudioEngine,
+  CONTEST_ENGINE_DEFAULTS,
+} from 'morse-audio';
+
+export type {
+  ContestEngineOptions,
+  ContestEngineStatus,
+  ContestEngineCallbacks,
+  PlayStationOptions,
+  PlaySidetoneOptions,
+  ActiveStation,
+  IContestAudioEngine,
+  StationEffectsOptions,
+  RayleighFadingOptions,
+  FlutterOptions,
+  ChirpOptions,
+  BuzzOptions,
 } from 'morse-audio';
