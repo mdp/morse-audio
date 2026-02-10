@@ -34,6 +34,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -41,10 +46,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
 
       - name: Bump version
         working-directory: packages/morse-audio
@@ -52,7 +57,7 @@ jobs:
 
       - name: Build
         working-directory: packages/morse-audio
-        run: npm run build
+        run: pnpm run build
 
       - name: Publish to npm
         working-directory: packages/morse-audio
@@ -90,6 +95,11 @@ jobs:
         if: inputs.package == 'both'
         run: git pull origin main
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -97,10 +107,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run tests
-        run: npm test
+        run: pnpm test
 
       - name: Update morse-audio dependency
         if: inputs.package == 'both'
@@ -116,11 +126,11 @@ jobs:
 
       - name: Build morse-audio first
         working-directory: packages/morse-audio
-        run: npm run build
+        run: pnpm run build
 
       - name: Build react-morse-audio
         working-directory: packages/react-morse-audio
-        run: npm run build
+        run: pnpm run build
 
       - name: Publish to npm
         working-directory: packages/react-morse-audio
