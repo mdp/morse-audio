@@ -5,4 +5,3 @@ packages/*/dist/
 *.log
 .DS_Store
 .claude/
-pnpm-lock.yaml
