@@ -1,4 +1,5 @@
 export type GamePhase = 'start' | 'playing' | 'results';
+export type GameMode = 'original' | 'mobile';
 
 export interface GameState {
   phase: GamePhase;
@@ -31,6 +32,7 @@ export interface Settings {
   callsignsPerAttempt: number;
   speedMode: 'adaptive' | 'fixed';
   speedIncrement: number;
+  gameMode: GameMode;
 }
 
 export interface HighScoreEntry {
@@ -42,6 +44,7 @@ export interface HighScoreEntry {
   peakSpeed: number;
   accuracy: number;
   complete: boolean;
+  mode?: GameMode;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -51,4 +54,5 @@ export const DEFAULT_SETTINGS: Settings = {
   callsignsPerAttempt: 50,
   speedMode: 'adaptive',
   speedIncrement: 2,
+  gameMode: 'original',
 };

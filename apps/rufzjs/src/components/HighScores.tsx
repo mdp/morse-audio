@@ -1,4 +1,5 @@
-import { HighScoreEntry } from '../types';
+import { useState } from 'react';
+import { HighScoreEntry, GameMode } from '../types';
 
 interface HighScoresProps {
   scores: HighScoreEntry[];
@@ -7,12 +8,31 @@ interface HighScoresProps {
 }
 
 export function HighScores({ scores, onClose, onClear }: HighScoresProps) {
+  const [modeFilter, setModeFilter] = useState<GameMode>('original');
+
+  const filtered = scores.filter(s => (s.mode || 'original') === modeFilter);
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal high-scores-modal" onClick={(e) => e.stopPropagation()}>
         <h2>High Scores</h2>
 
-        {scores.length === 0 ? (
+        <div className="mode-filter">
+          <button
+            className={`mode-filter-button ${modeFilter === 'original' ? 'active' : ''}`}
+            onClick={() => setModeFilter('original')}
+          >
+            Original
+          </button>
+          <button
+            className={`mode-filter-button ${modeFilter === 'mobile' ? 'active' : ''}`}
+            onClick={() => setModeFilter('mobile')}
+          >
+            Mobile
+          </button>
+        </div>
+
+        {filtered.length === 0 ? (
           <p className="no-scores">No high scores yet. Play a game to set one!</p>
         ) : (
           <table className="high-scores-table">
@@ -27,7 +47,7 @@ export function HighScores({ scores, onClose, onClear }: HighScoresProps) {
               </tr>
             </thead>
             <tbody>
-              {scores.map((entry, i) => (
+              {filtered.map((entry, i) => (
                 <tr key={i} className={!entry.complete ? 'incomplete' : ''}>
                   <td>{i + 1}</td>
                   <td className="score">{entry.score.toLocaleString()}</td>

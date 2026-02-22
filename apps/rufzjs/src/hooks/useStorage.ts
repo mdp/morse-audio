@@ -25,7 +25,20 @@ export function useStorage() {
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.highScores);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed: HighScoreEntry[] = JSON.parse(stored);
+        // Migrate entries without mode field to 'original'
+        let migrated = false;
+        const entries = parsed.map(entry => {
+          if (!entry.mode) {
+            migrated = true;
+            return { ...entry, mode: 'original' as const };
+          }
+          return entry;
+        });
+        if (migrated) {
+          localStorage.setItem(STORAGE_KEYS.highScores, JSON.stringify(entries));
+        }
+        return entries;
       }
     } catch {
       // Ignore parse errors

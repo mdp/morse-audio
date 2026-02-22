@@ -866,6 +866,166 @@ kbd {
   white-space: nowrap;
 }
 
+/* Mode Selector */
+.mode-selector {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid var(--border);
+}
+
+.mode-button {
+  flex: 1;
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-button.active {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.mode-button:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Mobile Multiple-Choice */
+.mobile-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mobile-choice-button {
+  min-height: 64px;
+  font-size: 1.4rem;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 1px;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.mobile-choice-button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(233, 69, 96, 0.15);
+}
+
+.mobile-choice-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mobile-choice-button.correct {
+  background: var(--success);
+  border-color: var(--success);
+  color: white;
+  animation: flash-green 0.2s ease-out;
+}
+
+.mobile-choice-button.wrong {
+  background: var(--error);
+  border-color: var(--error);
+  color: white;
+  animation: flash-red 0.2s ease-out;
+}
+
+/* Odd child spans full width when 5 buttons in 2-col grid */
+.mobile-choices .mobile-choice-button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+@keyframes flash-green {
+  0% { background: var(--bg-tertiary); }
+  50% { background: var(--success); }
+  100% { background: var(--success); }
+}
+
+@keyframes flash-red {
+  0% { background: var(--bg-tertiary); }
+  50% { background: var(--error); }
+  100% { background: var(--error); }
+}
+
+/* Segment progress */
+.segment-progress {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.segment-dot {
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.segment-dot.active {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.segment-dot.correct {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.segment-dot.wrong {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: var(--error);
+  color: var(--error);
+}
+
+/* Mode filter for high scores */
+.mode-filter {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: 1rem;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  padding: 3px;
+}
+
+.mode-filter-button {
+  padding: 6px 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.mode-filter-button.active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 /* Responsive */
 @media (max-width: 480px) {
   .app {

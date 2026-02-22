@@ -7,6 +7,7 @@ import { calculateStats } from './utils/scoring';
 import { initCallsignDatabase, getCallsignCount } from './utils/callsignDatabase';
 import { StartScreen } from './components/StartScreen';
 import { GameScreen } from './components/GameScreen';
+import { MobileGameScreen } from './components/MobileGameScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { HighScores } from './components/HighScores';
 import { SettingsModal } from './components/SettingsModal';
@@ -120,6 +121,7 @@ export default function App() {
         peakSpeed: stats.peakSpeed,
         accuracy: stats.accuracy,
         complete: state.results.length === settings.callsignsPerAttempt,
+        mode: settings.gameMode,
       };
       const isNew = highScores.length === 0 || entry.score > highScores[0].score;
       addHighScore(entry);
@@ -150,6 +152,14 @@ export default function App() {
     }
   }, [state.isPlaying, state.userAnswer, submitAnswer, audio]);
 
+  const handleMobileSubmit = useCallback((answer: string) => {
+    if (state.isPlaying) {
+      audio.stopSidetone();
+    }
+    setAnswer(answer);
+    submitAnswer();
+  }, [state.isPlaying, audio, setAnswer, submitAnswer]);
+
   const handleTryAgain = useCallback(() => {
     reset();
   }, [reset]);
@@ -178,7 +188,7 @@ export default function App() {
         />
       )}
 
-      {state.phase === 'playing' && (
+      {state.phase === 'playing' && settings.gameMode === 'original' && (
         <GameScreen
           state={state}
           settings={settings}
@@ -186,6 +196,18 @@ export default function App() {
           attemptNumber={attemptNumber}
           onAnswerChange={setAnswer}
           onSubmit={handleSubmit}
+          onReplay={handleReplay}
+          onAbort={abort}
+        />
+      )}
+
+      {state.phase === 'playing' && settings.gameMode === 'mobile' && (
+        <MobileGameScreen
+          state={state}
+          settings={settings}
+          userCall={settings.userCall}
+          attemptNumber={attemptNumber}
+          onSubmitAnswer={handleMobileSubmit}
           onReplay={handleReplay}
           onAbort={abort}
         />

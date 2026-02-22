@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, HighScoreEntry } from '../types';
+import { Settings, HighScoreEntry, GameMode } from '../types';
 
 interface StartScreenProps {
   settings: Settings;
@@ -30,9 +30,10 @@ export function StartScreen({
     onStart();
   };
 
-  const topScore = highScores[0];
-  const bestSpeed = highScores.length > 0
-    ? Math.max(...highScores.map(h => h.peakSpeed))
+  const filteredScores = highScores.filter(h => (h.mode || 'original') === settings.gameMode);
+  const topScore = filteredScores[0];
+  const bestSpeed = filteredScores.length > 0
+    ? Math.max(...filteredScores.map(h => h.peakSpeed))
     : 0;
 
   const canStart = dbStatus === 'ready';
@@ -41,6 +42,21 @@ export function StartScreen({
     <div className="start-screen">
       <h1>RufzXP Web</h1>
       <p className="subtitle">CW Callsign Trainer</p>
+
+      <div className="mode-selector">
+        <button
+          className={`mode-button ${settings.gameMode === 'original' ? 'active' : ''}`}
+          onClick={() => onSettingsChange({ gameMode: 'original' as GameMode })}
+        >
+          Original
+        </button>
+        <button
+          className={`mode-button ${settings.gameMode === 'mobile' ? 'active' : ''}`}
+          onClick={() => onSettingsChange({ gameMode: 'mobile' as GameMode })}
+        >
+          Mobile
+        </button>
+      </div>
 
       <div className="form-group">
         <label htmlFor="userCall">Your Call:</label>

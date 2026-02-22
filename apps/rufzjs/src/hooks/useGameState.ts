@@ -38,6 +38,7 @@ const initialState: GameStateWithCallsigns = {
     callsignsPerAttempt: 50,
     speedMode: 'adaptive',
     speedIncrement: 2,
+    gameMode: 'original',
   },
 };
 
