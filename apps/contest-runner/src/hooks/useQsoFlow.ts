@@ -2,14 +2,17 @@ import { useCallback, useRef } from 'react';
 import type { UseContestAudioReturn } from 'react-morse-audio';
 import type { ContestState, Caller, OperatorState } from '../types';
 import { getCallsignPool, shuffle } from '../utils/callsignPool';
+import { getCWOpsPool, pickCwtCaller } from '../utils/cwopsPool';
 import {
   getCqMessage,
   getExchangeMessage,
   getTuCqMessage,
   msgRNr,
+  getCwtExchangeMessage,
+  msgCwtExchange,
 } from '../utils/messages';
 import { rndPoisson } from 'morse-audio';
-import { createCaller, processMessage, getCallerReply } from '../utils/callerStateMachine';
+import { createCaller, processMessage, getCallerReply, getCallerReplyForCwt } from '../utils/callerStateMachine';
 
 interface UseQsoFlowOptions {
   state: ContestState;
@@ -42,20 +45,49 @@ export function useQsoFlow({
   // Generate a pileup of callers using Poisson distribution
   const generatePileup = useCallback((): Caller[] => {
     // Filter out already worked calls
-    const workedCalls = new Set(state.log.map(q => q.call));
-    const pool = getCallsignPool();
-    const availableCalls = pool.filter(c => !workedCalls.has(c.call));
+    const workedCallsSet = new Set(state.log.map(q => q.call));
 
     // Poisson distribution based on activity level (1-9)
     // Activity/2 gives mean pileup size of 0.5-4.5
     const activity = state.contestSettings.activity;
     const count = Math.max(1, rndPoisson(activity / 2));
 
+    // CWT mode - use CWOps pool
+    if (state.contestType === 'cwt') {
+      const cwopsPool = getCWOpsPool();
+      const availableMembers = cwopsPool.filter(m => !workedCallsSet.has(m.call));
+
+      if (availableMembers.length === 0) {
+        return [];
+      }
+
+      // Pick random callers from CWOps pool
+      const callers: Caller[] = [];
+      const shuffledMembers = shuffle(availableMembers);
+
+      for (let i = 0; i < Math.min(count, shuffledMembers.length); i++) {
+        // Use pickCwtCaller for 95/5 member/non-member distribution
+        const cwtData = pickCwtCaller(availableMembers);
+        const entry = {
+          call: cwtData.call,
+          prefix: cwtData.prefix,
+          continent: cwtData.continent,
+        };
+        callers.push(createCaller(entry, state.wpm, state.contestSettings, cwtData));
+      }
+
+      return callers;
+    }
+
+    // WPX mode - use standard callsign pool
+    const pool = getCallsignPool();
+    const availableCalls = pool.filter(c => !workedCallsSet.has(c.call));
+
     // Create callers with full state machine
     return shuffle(availableCalls).slice(0, count).map(entry =>
       createCaller(entry, state.wpm, state.contestSettings)
     );
-  }, [state.wpm, state.log, state.contestSettings]);
+  }, [state.wpm, state.log, state.contestSettings, state.contestType]);
 
   // Cancel all pending replies
   const cancelPendingReplies = useCallback(() => {
@@ -185,8 +217,16 @@ export function useQsoFlow({
 
     onStateChange('sending_exchange');
 
-    // Send: {theircall} 5NN {serial}
-    const message = getExchangeMessage(targetCaller.call, state.nextSerial);
+    // Send exchange based on contest type
+    let message: string;
+    if (state.contestType === 'cwt') {
+      // CWT: {theircall} {myname} {mynumber}
+      message = getCwtExchangeMessage(targetCaller.call, state.myName, state.myNumber);
+    } else {
+      // WPX: {theircall} 5NN {serial}
+      message = getExchangeMessage(targetCaller.call, state.nextSerial);
+    }
+
     await audio.playSidetone({ text: message, wpm: state.wpm });
 
     // Sidetone finished - process caller state machine
@@ -208,39 +248,73 @@ export function useQsoFlow({
     // Small delay before station responds
     await new Promise(resolve => setTimeout(resolve, 200 + targetCaller.sendDelay));
 
-    // Get and play caller's response based on state
+    // Get and play caller's response based on state and contest type
     const updatedCaller = { ...targetCaller, state: newState };
-    const reply = getCallerReply(updatedCaller, false);
 
-    if (reply.type !== 'SILENT' && shouldReply) {
-      // Play station's response
-      await audio.playStation({
-        id: `response-${targetCaller.id}`,
-        text: reply.text,
-        wpm: targetCaller.wpm,
-        frequencyOffset: targetCaller.frequencyOffset,
-        signalStrength: targetCaller.signalStrength,
-      });
+    if (state.contestType === 'cwt' && targetCaller.cwtExchange) {
+      // CWT response: NAME NUMBER
+      const reply = getCallerReplyForCwt(updatedCaller, false);
+
+      if (reply.type !== 'SILENT' && shouldReply) {
+        await audio.playStation({
+          id: `response-${targetCaller.id}`,
+          text: reply.text,
+          wpm: targetCaller.wpm,
+          frequencyOffset: targetCaller.frequencyOffset,
+          signalStrength: targetCaller.signalStrength,
+        });
+      } else {
+        // Fallback CWT response
+        const cwtExchange = targetCaller.cwtExchange;
+        await audio.playStation({
+          id: `response-${targetCaller.id}`,
+          text: msgCwtExchange(cwtExchange.name, cwtExchange.number, targetCaller.isLid),
+          wpm: targetCaller.wpm,
+          frequencyOffset: targetCaller.frequencyOffset,
+          signalStrength: targetCaller.signalStrength,
+        });
+      }
     } else {
-      // Fallback to standard response
-      await audio.playStation({
-        id: `response-${targetCaller.id}`,
-        text: msgRNr(targetCaller.serial, targetCaller.isLid),
-        wpm: targetCaller.wpm,
-        frequencyOffset: targetCaller.frequencyOffset,
-        signalStrength: targetCaller.signalStrength,
-      });
+      // WPX response: R 5NN SERIAL
+      const reply = getCallerReply(updatedCaller, false);
+
+      if (reply.type !== 'SILENT' && shouldReply) {
+        await audio.playStation({
+          id: `response-${targetCaller.id}`,
+          text: reply.text,
+          wpm: targetCaller.wpm,
+          frequencyOffset: targetCaller.frequencyOffset,
+          signalStrength: targetCaller.signalStrength,
+        });
+      } else {
+        // Fallback to standard response
+        await audio.playStation({
+          id: `response-${targetCaller.id}`,
+          text: msgRNr(targetCaller.serial, targetCaller.isLid),
+          wpm: targetCaller.wpm,
+          frequencyOffset: targetCaller.frequencyOffset,
+          signalStrength: targetCaller.signalStrength,
+        });
+      }
     }
 
     // Station finished responding - user needs to copy and enter the exchange
     onStateChange('logging');
-  }, [state.selectedCaller, state.currentCall, state.nextSerial, state.wpm, audio,
+  }, [state.selectedCaller, state.currentCall, state.nextSerial, state.wpm, state.contestType,
+      state.myName, state.myNumber, audio,
       findMatchingCaller, onCallerSelect, onStateChange, onUpdateCaller, cancelPendingReplies]);
 
   // Log QSO and send TU (+ CQ if auto-CQ enabled)
   const logAndTu = useCallback(async (withCq: boolean = true) => {
-    // Need caller selected and user must have entered a serial number
-    if (!state.selectedCaller || !state.enteredNr || audio.isSending) return;
+    // Check if we have the required data for the contest type
+    if (!state.selectedCaller || audio.isSending) return;
+
+    // CWT needs name and number, WPX needs serial number
+    if (state.contestType === 'cwt') {
+      if (!state.enteredName || !state.enteredNumber) return;
+    } else {
+      if (!state.enteredNr) return;
+    }
 
     // Log the QSO first
     onLogQso();
@@ -260,7 +334,8 @@ export function useQsoFlow({
     } else {
       onStateChange('idle');
     }
-  }, [state.selectedCaller, state.enteredNr, state.userCall, state.wpm, audio,
+  }, [state.selectedCaller, state.enteredNr, state.enteredName, state.enteredNumber,
+      state.userCall, state.wpm, state.contestType, audio,
       onLogQso, onStateChange, sendCq]);
 
   // ESM: Enter Sends Message (context-sensitive)
@@ -288,13 +363,24 @@ export function useQsoFlow({
 
       case 'logging':
         // Ready to log = log + TU + CQ
-        await logAndTu(true);
+        // For CWT, check if name and number are entered
+        // For WPX, check if serial number is entered
+        if (state.contestType === 'cwt') {
+          if (state.enteredName && state.enteredNumber) {
+            await logAndTu(true);
+          }
+        } else {
+          if (state.enteredNr) {
+            await logAndTu(true);
+          }
+        }
         break;
 
       default:
         break;
     }
-  }, [audio, state.qsoState, state.currentCall, sendCq, sendExchange, logAndTu, findMatchingCaller]);
+  }, [audio, state.qsoState, state.currentCall, state.contestType, state.enteredNr,
+      state.enteredName, state.enteredNumber, sendCq, sendExchange, logAndTu, findMatchingCaller]);
 
   // Insert key: send call + exchange immediately
   const handleInsert = useCallback(async () => {
@@ -341,9 +427,16 @@ export function useQsoFlow({
   // F2: Send exchange only
   const handleF2 = useCallback(async () => {
     if (!audio.isRunning || audio.isSending || !state.selectedCaller) return;
-    const message = getExchangeMessage(state.selectedCaller.call, state.nextSerial);
+
+    let message: string;
+    if (state.contestType === 'cwt') {
+      message = getCwtExchangeMessage(state.selectedCaller.call, state.myName, state.myNumber);
+    } else {
+      message = getExchangeMessage(state.selectedCaller.call, state.nextSerial);
+    }
+
     await audio.playSidetone({ text: message, wpm: state.wpm });
-  }, [audio, state.selectedCaller, state.nextSerial, state.wpm]);
+  }, [audio, state.selectedCaller, state.nextSerial, state.wpm, state.contestType, state.myName, state.myNumber]);
 
   // F3: TU only
   const handleF3 = useCallback(async () => {

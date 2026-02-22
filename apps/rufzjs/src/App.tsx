@@ -48,8 +48,6 @@ export default function App() {
   const audio = useContestAudio({
     sidetoneFrequency: settings.toneFrequency,
     sidetoneVolume: 0.8,
-    // Very low-level QRN keeps audio stream "hot" to prevent Bluetooth clipping
-    qrn: { snr: 40 },
     receiverVolume: 0.05,
     onSidetoneComplete: () => {
       setPlaying(false);

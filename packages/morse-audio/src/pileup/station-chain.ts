@@ -15,53 +15,10 @@ import { Buzz } from '../utils/buzz';
 import type { PileupStation } from './types';
 
 /**
- * Biquad lowpass filter for envelope smoothing
- */
-class BiquadLowpass {
-  private x1 = 0;
-  private x2 = 0;
-  private y1 = 0;
-  private y2 = 0;
-  private b0: number;
-  private b1: number;
-  private b2: number;
-  private a1: number;
-  private a2: number;
-
-  constructor(cutoffFreq: number, sampleRate: number) {
-    const omega = (2 * Math.PI * cutoffFreq) / sampleRate;
-    const sinOmega = Math.sin(omega);
-    const cosOmega = Math.cos(omega);
-    const Q = 0.707;
-    const alpha = sinOmega / (2 * Q);
-
-    const a0 = 1 + alpha;
-    this.b0 = ((1 - cosOmega) / 2) / a0;
-    this.b1 = (1 - cosOmega) / a0;
-    this.b2 = ((1 - cosOmega) / 2) / a0;
-    this.a1 = (-2 * cosOmega) / a0;
-    this.a2 = (1 - alpha) / a0;
-  }
-
-  process(x: number): number {
-    const y =
-      this.b0 * x +
-      this.b1 * this.x1 +
-      this.b2 * this.x2 -
-      this.a1 * this.y1 -
-      this.a2 * this.y2;
-
-    this.x2 = this.x1;
-    this.x1 = x;
-    this.y2 = this.y1;
-    this.y1 = y;
-
-    return y;
-  }
-}
-
-/**
  * Generate keying envelope from timings
+ *
+ * Uses single-pass raised cosine ramps for clean attack/decay without
+ * over-smoothing. This produces crisp, click-free morse keying.
  *
  * @param timings - Array of timing values (positive = sound, negative = silence)
  * @param sampleRate - Sample rate in Hz
@@ -71,7 +28,7 @@ class BiquadLowpass {
 export function generateEnvelope(
   timings: number[],
   sampleRate: number,
-  rampDuration: number = 10
+  rampDuration: number = 5
 ): Float32Array {
   let totalMs = 0;
   for (const timing of timings) {
@@ -82,54 +39,35 @@ export function generateEnvelope(
   const envelope = new Float32Array(totalSamples);
   const rampSamples = Math.ceil((rampDuration / 1000) * sampleRate);
 
-  // Create lowpass filter for smoothing
-  const cutoffFreq = 1000 / rampDuration;
-  const filter = new BiquadLowpass(
-    Math.min(cutoffFreq, sampleRate / 4),
-    sampleRate
-  );
-
-  // Generate raw envelope
-  const raw = new Float32Array(totalSamples);
   let sampleIndex = 0;
 
   for (const timing of timings) {
-    const duration = Math.abs(timing);
-    const numSamples = Math.ceil((duration / 1000) * sampleRate);
+    const numSamples = Math.ceil((Math.abs(timing) / 1000) * sampleRate);
     const isSound = timing > 0;
 
-    for (let i = 0; i < numSamples && sampleIndex < totalSamples; i++) {
-      raw[sampleIndex] = isSound ? 1 : 0;
-      sampleIndex++;
-    }
-  }
+    if (isSound) {
+      const attackEnd = Math.min(rampSamples, numSamples);
+      const decayStart = Math.max(numSamples - rampSamples, attackEnd);
 
-  // Apply lowpass filter
-  for (let i = 0; i < totalSamples; i++) {
-    envelope[i] = filter.process(raw[i]);
-  }
-
-  // Apply raised cosine ramp at transitions
-  let prevEnv = 0;
-  for (let i = 0; i < totalSamples; i++) {
-    const env = raw[i];
-
-    if (env !== prevEnv) {
-      const rampStart = i;
-      const rampEnd = Math.min(i + rampSamples, totalSamples);
-
-      for (let j = rampStart; j < rampEnd; j++) {
-        const t = (j - rampStart) / rampSamples;
-        if (env > prevEnv) {
-          const rampVal = 0.5 * (1 - Math.cos(Math.PI * t));
-          envelope[j] = Math.max(envelope[j], rampVal * env);
-        } else {
-          const rampVal = 0.5 * (1 + Math.cos(Math.PI * t));
-          envelope[j] = Math.min(envelope[j], rampVal * prevEnv);
+      for (let i = 0; i < numSamples && sampleIndex < totalSamples; i++) {
+        let env = 1.0;
+        if (i < attackEnd) {
+          // Attack ramp: raised cosine from 0 to 1
+          env = 0.5 * (1 - Math.cos(Math.PI * i / rampSamples));
+        } else if (i >= decayStart) {
+          // Decay ramp: raised cosine from 1 to 0
+          env = 0.5 * (1 + Math.cos(Math.PI * (i - decayStart) / rampSamples));
         }
+        envelope[sampleIndex++] = env;
+      }
+    } else {
+      // Silence - just advance index (array is zero-initialized)
+      sampleIndex += numSamples;
+      // Clamp to bounds
+      if (sampleIndex > totalSamples) {
+        sampleIndex = totalSamples;
       }
     }
-    prevEnv = env;
   }
 
   return envelope;

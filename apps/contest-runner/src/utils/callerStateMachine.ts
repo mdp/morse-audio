@@ -10,7 +10,8 @@
  * Any state --timeout--> retry or osFailed
  */
 
-import type { Caller, OperatorState, ContestSettings } from '../types';
+import type { Caller, OperatorState, ContestSettings, CwtExchange } from '../types';
+import type { CwtCallerData } from './cwopsPool';
 import { matchCall, type MatchResult } from './callMatch';
 import {
   generateCallerWpm,
@@ -70,11 +71,14 @@ export interface CallerEntry {
 
 /**
  * Create a new caller with full state machine
+ * For WPX contests, uses standard callsign entry
+ * For CWT contests, uses CwtCallerData with name/number exchange
  */
 export function createCaller(
   entry: CallerEntry,
   operatorWpm: number,
-  settings: ContestSettings
+  settings: ContestSettings,
+  cwtData?: CwtCallerData
 ): Caller {
   const skill = generateSkillLevel();
   const isLid = generateIsLid(settings.lids);
@@ -103,6 +107,15 @@ export function createCaller(
     skill,
     isLid,
   };
+
+  // Add CWT exchange data if provided
+  if (cwtData) {
+    caller.cwtExchange = {
+      name: cwtData.name,
+      number: cwtData.number,
+      isMember: cwtData.isMember,
+    };
+  }
 
   // Add QSB parameters if enabled
   if (settings.qsb) {
@@ -287,7 +300,92 @@ export function getCallerReply(
 }
 
 /**
- * Format caller's exchange with cut numbers
+ * Get the reply message for a CWT caller based on their current state
+ * CWT format: NAME NUMBER (e.g., "BOB 2381" or "BOB CA")
+ */
+export function getCallerReplyForCwt(
+  caller: Caller,
+  wasPartialMatch: boolean = false
+): CallerReply {
+  const { state, call, isLid, cwtExchange } = caller;
+
+  if (!cwtExchange) {
+    // Fallback to WPX format if no CWT data
+    return getCallerReply(caller, wasPartialMatch);
+  }
+
+  // 10% chance of lid making a copy error in their response
+  const makeError = isLid && Math.random() < 0.1;
+
+  switch (state) {
+    case 'osNeedQso':
+      // Initial call - just send callsign
+      const doubleCall = Math.random() < 0.1;
+      const callText = doubleCall ? `${call} ${call}` : call;
+      return { type: 'CALL_ONLY', text: callText };
+
+    case 'osNeedCall':
+      // Need to re-send callsign after partial match
+      if (wasPartialMatch) {
+        return { type: 'DE_CALL', text: `DE ${call} ${call}` };
+      }
+      return { type: 'CALL_ONLY', text: call };
+
+    case 'osNeedNr':
+      // Operator asked for our exchange, just send it
+      return { type: 'QUERY', text: 'NR?' };
+
+    case 'osNeedCallNr':
+      // Need to send both call and exchange
+      const cwtExchangeWithCall = formatCwtExchange(cwtExchange, makeError);
+      return { type: 'CALL_EXCHANGE', text: `${call} ${cwtExchangeWithCall}` };
+
+    case 'osNeedEnd':
+      // Send our exchange, waiting for TU
+      const finalExchange = formatCwtExchange(cwtExchange, makeError);
+      return { type: 'EXCHANGE_ONLY', text: finalExchange };
+
+    case 'osDone':
+      // Send final TU
+      return { type: 'TU', text: 'TU' };
+
+    case 'osFailed':
+    case 'osNeedPrevEnd':
+    default:
+      return { type: 'SILENT' };
+  }
+}
+
+/**
+ * Format CWT exchange: NAME NUMBER
+ * Applies cut numbers to numeric member numbers
+ */
+function formatCwtExchange(exchange: CwtExchange, makeError: boolean): string {
+  let { name, number, isMember } = exchange;
+
+  // Apply cut numbers if it's a member number (numeric)
+  if (isMember && /^\d+$/.test(number)) {
+    number = number
+      .replace(/0/g, 'T')
+      .replace(/9/g, 'N');
+
+    if (makeError) {
+      // Corrupt the number
+      const chars = number.split('');
+      const i = Math.floor(Math.random() * chars.length);
+      if (/[0-9TNE]/.test(chars[i])) {
+        const replacements = ['T', 'N', 'E', 'A', '1', '5'];
+        chars[i] = replacements[Math.floor(Math.random() * replacements.length)];
+      }
+      number = chars.join('');
+    }
+  }
+
+  return `${name} ${number}`;
+}
+
+/**
+ * Format caller's exchange with cut numbers (WPX format)
  * @param serial The serial number
  * @param makeError Whether to introduce a copy error
  */

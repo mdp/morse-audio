@@ -8,49 +8,6 @@
 const DEFAULT_SAMPLE_RATE = 22050;
 
 /**
- * Simple biquad lowpass filter for smoothing audio transitions
- */
-class BiquadLowpass {
-  private x1 = 0;
-  private x2 = 0;
-  private y1 = 0;
-  private y2 = 0;
-  private b0: number;
-  private b1: number;
-  private b2: number;
-  private a1: number;
-  private a2: number;
-
-  constructor(cutoffFreq: number, sampleRate: number) {
-    // Calculate filter coefficients for lowpass filter
-    const omega = (2 * Math.PI * cutoffFreq) / sampleRate;
-    const sinOmega = Math.sin(omega);
-    const cosOmega = Math.cos(omega);
-    const Q = 0.707; // Butterworth Q
-    const alpha = sinOmega / (2 * Q);
-
-    const a0 = 1 + alpha;
-    this.b0 = ((1 - cosOmega) / 2) / a0;
-    this.b1 = (1 - cosOmega) / a0;
-    this.b2 = ((1 - cosOmega) / 2) / a0;
-    this.a1 = (-2 * cosOmega) / a0;
-    this.a2 = (1 - alpha) / a0;
-  }
-
-  process(x: number): number {
-    const y = this.b0 * x + this.b1 * this.x1 + this.b2 * this.x2
-              - this.a1 * this.y1 - this.a2 * this.y2;
-
-    this.x2 = this.x1;
-    this.x1 = x;
-    this.y2 = this.y1;
-    this.y1 = y;
-
-    return y;
-  }
-}
-
-/**
  * Generate audio samples from morse timings
  *
  * @param timings - Array of timing values in ms (positive = sound, negative = silence)
@@ -64,8 +21,8 @@ export function generateSamples(
   timings: number[],
   frequency: number,
   sampleRate: number = DEFAULT_SAMPLE_RATE,
-  rampDuration: number = 10,
-  leadInMs: number = 100
+  rampDuration: number = 5,
+  leadInMs: number = 300
 ): Float32Array {
   // Calculate total number of samples needed (including lead-in padding)
   let totalMs = leadInMs;
@@ -80,83 +37,44 @@ export function generateSamples(
   // Calculate ramp samples
   const rampSamples = Math.ceil((rampDuration / 1000) * sampleRate);
 
-  // Create lowpass filter for smoothing envelope
-  // Cutoff frequency based on ramp duration
-  const cutoffFreq = 1000 / rampDuration;
-  const filter = new BiquadLowpass(Math.min(cutoffFreq, sampleRate / 4), sampleRate);
-
-  // Generate raw envelope (1 = sound, 0 = silence)
-  // Start after lead-in padding (silence for Bluetooth wake-up)
+  // Generate envelope with inline raised cosine ramps
   const envelope = new Float32Array(totalSamples);
   let sampleIndex = leadInSamples; // Skip lead-in (already zero-filled)
 
   for (const timing of timings) {
-    const duration = Math.abs(timing);
-    const numSamples = Math.ceil((duration / 1000) * sampleRate);
+    const numSamples = Math.ceil((Math.abs(timing) / 1000) * sampleRate);
     const isSound = timing > 0;
 
-    for (let i = 0; i < numSamples && sampleIndex < totalSamples; i++) {
-      envelope[sampleIndex] = isSound ? 1 : 0;
-      sampleIndex++;
-    }
-  }
+    if (isSound) {
+      const attackEnd = Math.min(rampSamples, numSamples);
+      const decayStart = Math.max(numSamples - rampSamples, attackEnd);
 
-  // Apply lowpass filter to envelope for smooth transitions
-  const smoothedEnvelope = new Float32Array(totalSamples);
-  for (let i = 0; i < totalSamples; i++) {
-    smoothedEnvelope[i] = filter.process(envelope[i]);
-  }
-
-  // Apply additional raised cosine ramp at transitions for extra smoothness
-  let prevEnv = 0;
-  for (let i = 0; i < totalSamples; i++) {
-    const env = envelope[i];
-
-    // Detect transition points and apply cosine ramp
-    if (env !== prevEnv) {
-      const rampStart = i;
-      const rampEnd = Math.min(i + rampSamples, totalSamples);
-
-      for (let j = rampStart; j < rampEnd; j++) {
-        const t = (j - rampStart) / rampSamples;
-        if (env > prevEnv) {
-          // Attack: ramp up using raised cosine
-          const rampVal = 0.5 * (1 - Math.cos(Math.PI * t));
-          smoothedEnvelope[j] = Math.max(smoothedEnvelope[j], rampVal * env);
-        } else {
-          // Decay: ramp down using raised cosine
-          const rampVal = 0.5 * (1 + Math.cos(Math.PI * t));
-          smoothedEnvelope[j] = Math.min(smoothedEnvelope[j], rampVal * prevEnv);
+      for (let i = 0; i < numSamples && sampleIndex < totalSamples; i++) {
+        let env = 1.0;
+        if (i < attackEnd) {
+          // Attack ramp: raised cosine from 0 to 1
+          env = 0.5 * (1 - Math.cos(Math.PI * i / rampSamples));
+        } else if (i >= decayStart) {
+          // Decay ramp: raised cosine from 1 to 0
+          env = 0.5 * (1 + Math.cos(Math.PI * (i - decayStart) / rampSamples));
         }
+        envelope[sampleIndex++] = env;
+      }
+    } else {
+      // Silence - just advance index (array is zero-initialized)
+      sampleIndex += numSamples;
+      // Clamp to bounds
+      if (sampleIndex > totalSamples) {
+        sampleIndex = totalSamples;
       }
     }
-    prevEnv = env;
   }
 
-  // Apply fade-in at the very start of the buffer to prevent click
-  const fadeInSamples = Math.min(rampSamples, totalSamples);
-  for (let i = 0; i < fadeInSamples; i++) {
-    const t = i / fadeInSamples;
-    // Raised cosine fade-in
-    const fadeMultiplier = 0.5 * (1 - Math.cos(Math.PI * t));
-    smoothedEnvelope[i] *= fadeMultiplier;
-  }
-
-  // Apply fade-out at the very end of the buffer to prevent click
-  const fadeOutSamples = Math.min(rampSamples, totalSamples);
-  for (let i = 0; i < fadeOutSamples; i++) {
-    const idx = totalSamples - fadeOutSamples + i;
-    const t = i / fadeOutSamples;
-    // Raised cosine fade-out
-    const fadeMultiplier = 0.5 * (1 + Math.cos(Math.PI * t));
-    smoothedEnvelope[idx] *= fadeMultiplier;
-  }
-
-  // Generate sine wave modulated by smoothed envelope
+  // Generate sine wave modulated by envelope
   const angularFreq = (2 * Math.PI * frequency) / sampleRate;
   for (let i = 0; i < totalSamples; i++) {
     const sine = Math.sin(angularFreq * i);
-    samples[i] = sine * smoothedEnvelope[i] * 0.8; // 0.8 to avoid clipping
+    samples[i] = sine * envelope[i] * 0.8; // 0.8 to avoid clipping
   }
 
   return samples;

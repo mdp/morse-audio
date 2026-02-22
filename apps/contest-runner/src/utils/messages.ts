@@ -164,3 +164,78 @@ export function getStationResponse(theirSerial: number): string {
 export function getStationTu(): string {
   return 'TU';
 }
+
+// ============================================
+// CWT Contest message generation
+// ============================================
+
+/**
+ * CWT: Caller's exchange response (name + number)
+ * Example: "BOB 2381" or "BOB CA"
+ */
+export function msgCwtExchange(name: string, number: string, makeError: boolean = false): string {
+  let numberStr = number;
+
+  if (makeError && /^\d+$/.test(number)) {
+    // Apply cut numbers and potentially corrupt for lid behavior
+    numberStr = formatCwtNumber(number);
+    numberStr = corruptSerial(numberStr);
+  } else if (/^\d+$/.test(number)) {
+    // Apply cut numbers to member numbers
+    numberStr = formatCwtNumber(number);
+  }
+
+  return `${name} ${numberStr}`;
+}
+
+/**
+ * CWT: Caller's call + exchange combo
+ * Used when caller needs to confirm both
+ * Example: "W1ABC BOB 2381"
+ */
+export function msgCwtCallAndExchange(call: string, name: string, number: string, makeError: boolean = false): string {
+  let numberStr = number;
+
+  if (makeError && /^\d+$/.test(number)) {
+    numberStr = formatCwtNumber(number);
+    numberStr = corruptSerial(numberStr);
+  } else if (/^\d+$/.test(number)) {
+    numberStr = formatCwtNumber(number);
+  }
+
+  return `${call} ${name} ${numberStr}`;
+}
+
+/**
+ * CWT: User's exchange to caller
+ * Format: {THEIR_CALL} {MY_NAME} {MY_NUMBER}
+ * Example: "W1ABC JOHN 1234"
+ */
+export function getCwtExchangeMessage(theirCall: string, myName: string, myNumber: string): string {
+  // Format the number with cut numbers if it's numeric
+  const numberStr = /^\d+$/.test(myNumber) ? formatCwtNumber(myNumber) : myNumber;
+  return `${theirCall} ${myName} ${numberStr}`;
+}
+
+/**
+ * CWT: Get CQ message for CWT (same as WPX, just CQ TEST)
+ */
+export function getCwtCqMessage(mycall: string): string {
+  return `CQ TEST ${mycall} ${mycall}`;
+}
+
+/**
+ * CWT: TU + CQ message
+ */
+export function getCwtTuCqMessage(mycall: string): string {
+  return `TU ${mycall}`;
+}
+
+/**
+ * Format CWT member number with cut numbers (0->T, 9->N)
+ */
+function formatCwtNumber(number: string): string {
+  return number
+    .replace(/0/g, 'T')
+    .replace(/9/g, 'N');
+}

@@ -1,6 +1,9 @@
 // QSO state machine states
 export type QsoState = 'idle' | 'cqing' | 'listening' | 'working' | 'sending_exchange' | 'logging' | 'sending_tu';
 
+// Contest types
+export type ContestType = 'wpx' | 'cwt';
+
 // Caller operator state machine (DxOper states from MorseRunner)
 export type OperatorState =
   | 'osNeedPrevEnd'  // Waiting for previous QSO to end
@@ -23,6 +26,13 @@ export interface ContestSettings {
 
 // Caller skill level affects behavior
 export type SkillLevel = 'low' | 'medium' | 'high';
+
+// CWT exchange data
+export interface CwtExchange {
+  name: string;
+  number: string; // Member # or state/DXCC
+  isMember: boolean;
+}
 
 // A caller in the pileup
 export interface Caller {
@@ -52,6 +62,9 @@ export interface Caller {
   // QSB fading parameters (if enabled)
   qsbBandwidth?: number;  // 0.1-30 Hz
   qsbDepth?: number;      // 0-1, typically ~0.7
+
+  // CWT-specific exchange data
+  cwtExchange?: CwtExchange;
 }
 
 // A logged QSO
@@ -61,15 +74,23 @@ export interface QsoEntry {
   sentRst: string;
   sentSerial: number;
   rcvdRst: string;
-  rcvdSerial: number;      // What user entered
-  actualSerial: number;    // What caller actually sent
+  rcvdSerial: number;      // What user entered (WPX)
+  actualSerial: number;    // What caller actually sent (WPX)
   prefix: string;
   isMultiplier: boolean;
   isDupe: boolean;         // Worked this call before
-  isBustedExchange: boolean; // User copied serial wrong
+  isBustedExchange: boolean; // User copied serial wrong (WPX) or name/number wrong (CWT)
   timestamp: number;
   points: number;          // Raw points (before verification)
   verifiedPoints: number;  // 0 if dupe or busted
+
+  // CWT-specific fields
+  rcvdName?: string;       // What user entered for name
+  rcvdNumber?: string;     // What user entered for number (CWT)
+  actualName?: string;     // What caller actually sent
+  actualNumber?: string;   // What caller's actual number was (CWT)
+  isBustedName?: boolean;  // Name was copied wrong
+  isBustedNumber?: boolean; // Number was copied wrong
 }
 
 // Main contest state
@@ -77,6 +98,9 @@ export interface ContestState {
   // Session
   isRunning: boolean;
   startTime: number | null;
+
+  // Contest type
+  contestType: ContestType;
 
   // QSO state machine
   qsoState: QsoState;
@@ -88,6 +112,10 @@ export interface ContestState {
   enteredRst: string;
   enteredNr: string;
 
+  // CWT-specific entry fields
+  enteredName: string;     // User's input for copied name
+  enteredNumber: string;   // User's input for copied number (CWT)
+
   // Callers in the pileup
   callers: Caller[];
 
@@ -95,12 +123,18 @@ export interface ContestState {
   log: QsoEntry[];
   nextSerial: number;
 
-  // Worked prefixes for multiplier tracking
+  // Worked prefixes for multiplier tracking (WPX)
   workedPrefixes: Set<string>;
+  // Worked calls for multiplier tracking (CWT)
+  workedCalls: Set<string>;
 
   // Settings
   userCall: string;
   wpm: number;
+
+  // CWT-specific settings
+  myName: string;          // User's name for CWT
+  myNumber: string;        // User's CWOps # or state
 
   // Band conditions
   qrnEnabled: boolean;
@@ -137,7 +171,13 @@ export type ContestAction =
   | { type: 'SET_QSB_ENABLED'; enabled: boolean }
   | { type: 'SET_QRM_ENABLED'; enabled: boolean }
   | { type: 'SET_FLUTTER_ENABLED'; enabled: boolean }
-  | { type: 'SET_LIDS_ENABLED'; enabled: boolean };
+  | { type: 'SET_LIDS_ENABLED'; enabled: boolean }
+  // CWT-specific actions
+  | { type: 'SET_CONTEST_TYPE'; contestType: ContestType }
+  | { type: 'SET_MY_NAME'; name: string }
+  | { type: 'SET_MY_NUMBER'; number: string }
+  | { type: 'SET_ENTERED_NAME'; name: string }
+  | { type: 'SET_ENTERED_NUMBER'; number: string };
 
 // Callsign pool entry
 export interface CallsignEntry {

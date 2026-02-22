@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import type { ContestType } from '../types';
 
 interface HeaderProps {
   isRunning: boolean;
   startTime: number | null;
+  contestType: ContestType;
   // Raw scores
   qsos: number;
   multipliers: number;
@@ -14,6 +16,9 @@ interface HeaderProps {
   // Errors
   dupeCount: number;
   bustedCount: number;
+  // CWT-specific errors
+  bustedNameCount?: number;
+  bustedNumberCount?: number;
   // User
   userCall: string;
   onUserCallChange: (call: string) => void;
@@ -34,6 +39,7 @@ function formatElapsed(ms: number): string {
 export function Header({
   isRunning,
   startTime,
+  contestType,
   qsos,
   multipliers,
   rawScore,
@@ -42,6 +48,8 @@ export function Header({
   verifiedScore,
   dupeCount,
   bustedCount,
+  bustedNameCount = 0,
+  bustedNumberCount = 0,
   userCall,
   onUserCallChange,
 }: HeaderProps) {
@@ -65,7 +73,7 @@ export function Header({
   return (
     <header className="contest-header">
       <div className="header-left">
-        <h1>CQ WPX Simulator</h1>
+        <h1>{contestType === 'cwt' ? 'CWT Simulator' : 'CQ WPX Simulator'}</h1>
         <div className="user-call">
           <label htmlFor="userCall">My Call:</label>
           <input
@@ -112,7 +120,15 @@ export function Header({
         {hasErrors && (
           <div className="error-stats">
             {dupeCount > 0 && <span className="error-stat dupe">{dupeCount} DUP</span>}
-            {bustedCount > 0 && <span className="error-stat busted">{bustedCount} NR?</span>}
+            {contestType === 'cwt' ? (
+              // CWT-specific error display
+              <>
+                {bustedNameCount > 0 && <span className="error-stat busted">{bustedNameCount} NAME</span>}
+                {bustedNumberCount > 0 && <span className="error-stat busted">{bustedNumberCount} NR</span>}
+              </>
+            ) : (
+              bustedCount > 0 && <span className="error-stat busted">{bustedCount} NR?</span>
+            )}
           </div>
         )}
       </div>

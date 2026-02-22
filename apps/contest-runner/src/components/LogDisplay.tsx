@@ -1,8 +1,9 @@
-import type { QsoEntry } from '../types';
+import type { QsoEntry, ContestType } from '../types';
 import { formatSerial } from '../utils/cutNumbers';
 
 interface LogDisplayProps {
   log: QsoEntry[];
+  contestType: ContestType;
 }
 
 function formatTime(timestamp: number): string {
@@ -22,7 +23,9 @@ function getRowClass(entry: QsoEntry): string {
   return '';
 }
 
-export function LogDisplay({ log }: LogDisplayProps) {
+export function LogDisplay({ log, contestType }: LogDisplayProps) {
+  const isCwt = contestType === 'cwt';
+
   return (
     <div className="log-display">
       <h2>Log</h2>
@@ -33,8 +36,19 @@ export function LogDisplay({ log }: LogDisplayProps) {
               <th>#</th>
               <th>Time</th>
               <th>Call</th>
-              <th>Sent</th>
-              <th>Rcvd</th>
+              {isCwt ? (
+                // CWT columns
+                <>
+                  <th>Name</th>
+                  <th>Nr</th>
+                </>
+              ) : (
+                // WPX columns
+                <>
+                  <th>Sent</th>
+                  <th>Rcvd</th>
+                </>
+              )}
               <th>Status</th>
               <th>Pts</th>
             </tr>
@@ -50,19 +64,61 @@ export function LogDisplay({ log }: LogDisplayProps) {
                 <td>{log.length - index}</td>
                 <td>{formatTime(entry.timestamp)}</td>
                 <td className="call-col">{entry.call}</td>
-                <td>{formatSerial(entry.sentSerial)}</td>
-                <td className={entry.isBustedExchange ? 'busted-nr' : ''}>
-                  {formatSerial(entry.rcvdSerial)}
-                  {entry.isBustedExchange && (
-                    <span className="correct-nr" title={`Should be ${entry.actualSerial}`}>
-                      ({entry.actualSerial})
-                    </span>
-                  )}
-                </td>
+                {isCwt ? (
+                  // CWT: Name and Number columns
+                  <>
+                    <td className={entry.isBustedName ? 'busted-name' : ''}>
+                      {entry.rcvdName}
+                      {entry.isBustedName && entry.actualName && (
+                        <span className="correct-name" title={`Should be ${entry.actualName}`}>
+                          ({entry.actualName})
+                        </span>
+                      )}
+                    </td>
+                    <td className={entry.isBustedNumber ? 'busted-nr' : ''}>
+                      {entry.rcvdNumber}
+                      {entry.isBustedNumber && entry.actualNumber && (
+                        <span className="correct-nr" title={`Should be ${entry.actualNumber}`}>
+                          ({entry.actualNumber})
+                        </span>
+                      )}
+                    </td>
+                  </>
+                ) : (
+                  // WPX: Sent and Rcvd serial columns
+                  <>
+                    <td>{formatSerial(entry.sentSerial)}</td>
+                    <td className={entry.isBustedExchange ? 'busted-nr' : ''}>
+                      {formatSerial(entry.rcvdSerial)}
+                      {entry.isBustedExchange && (
+                        <span className="correct-nr" title={`Should be ${entry.actualSerial}`}>
+                          ({entry.actualSerial})
+                        </span>
+                      )}
+                    </td>
+                  </>
+                )}
                 <td className="status-col">
                   {entry.isDupe && <span className="status-badge dupe">DUP</span>}
-                  {entry.isBustedExchange && !entry.isDupe && <span className="status-badge busted">NR?</span>}
-                  {entry.isMultiplier && <span className="status-badge mult">{entry.prefix}</span>}
+                  {entry.isBustedExchange && !entry.isDupe && (
+                    <span className="status-badge busted">
+                      {isCwt ? (
+                        // Show which part was busted for CWT
+                        <>
+                          {entry.isBustedName && 'NAME'}
+                          {entry.isBustedName && entry.isBustedNumber && '/'}
+                          {entry.isBustedNumber && 'NR'}
+                        </>
+                      ) : (
+                        'NR?'
+                      )}
+                    </span>
+                  )}
+                  {entry.isMultiplier && (
+                    <span className="status-badge mult">
+                      {isCwt ? 'NEW' : entry.prefix}
+                    </span>
+                  )}
                 </td>
                 <td>{entry.verifiedPoints}</td>
               </tr>

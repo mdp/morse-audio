@@ -1,20 +1,31 @@
-import { useRef, useCallback, useMemo, useEffect } from 'react';
+import { useRef, useCallback, useMemo, useEffect, useState } from 'react';
 import { useContestAudio } from 'react-morse-audio';
 import { useContestState } from './hooks/useContestState';
 import { useQsoFlow } from './hooks/useQsoFlow';
 import { useKeyboard } from './hooks/useKeyboard';
 import { Header } from './components/Header';
-import { CallerPanel } from './components/CallerPanel';
 import { QsoEntry } from './components/QsoEntry';
 import { LogDisplay } from './components/LogDisplay';
 import { BandControls } from './components/BandControls';
 import { KeyboardHelp } from './components/KeyboardHelp';
+import { ContestSetup } from './components/ContestSetup';
+import { loadCWOpsPool } from './utils/cwopsPool';
 
 function App() {
+  // Setup phase state - show setup screen first
+  const [isSetupComplete, setIsSetupComplete] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null!);
   const nrInputRef = useRef<HTMLInputElement>(null!);
   const sidetoneCompleteRef = useRef<() => void>(() => {});
   const { state, actions, computed } = useContestState();
+
+  // Load CWOps pool when CWT is selected
+  useEffect(() => {
+    if (state.contestType === 'cwt') {
+      loadCWOpsPool();
+    }
+  }, [state.contestType]);
 
   // QRN options for the audio engine
   const qrnOptions = useMemo(
@@ -115,11 +126,29 @@ function App() {
     [actions, audio]
   );
 
+  // Show setup screen if setup is not complete
+  if (!isSetupComplete) {
+    return (
+      <ContestSetup
+        userCall={state.userCall}
+        myName={state.myName}
+        myNumber={state.myNumber}
+        contestType={state.contestType}
+        onUserCallChange={actions.setUserCall}
+        onMyNameChange={actions.setMyName}
+        onMyNumberChange={actions.setMyNumber}
+        onContestTypeChange={actions.setContestType}
+        onStart={() => setIsSetupComplete(true)}
+      />
+    );
+  }
+
   return (
     <div className="app">
       <Header
         isRunning={state.isRunning}
         startTime={state.startTime}
+        contestType={state.contestType}
         qsos={computed.totalQsos}
         multipliers={computed.totalMultipliers}
         rawScore={computed.rawScore}
@@ -128,6 +157,8 @@ function App() {
         verifiedScore={computed.verifiedScore}
         dupeCount={computed.dupeCount}
         bustedCount={computed.bustedCount}
+        bustedNameCount={computed.bustedNameCount}
+        bustedNumberCount={computed.bustedNumberCount}
         userCall={state.userCall}
         onUserCallChange={actions.setUserCall}
       />
@@ -144,37 +175,33 @@ function App() {
         </div>
 
         <div className="contest-area">
-          <div className="left-panel">
-            <CallerPanel
-              callers={state.callers}
-              selectedCaller={state.selectedCaller}
-              onSelect={qsoFlow.selectCaller}
-              isListening={state.qsoState === 'listening' || state.qsoState === 'working'}
-            />
-          </div>
-
-          <div className="right-panel">
+          <div className="entry-panel">
             <QsoEntry
               qsoState={state.qsoState}
+              contestType={state.contestType}
               currentCall={state.currentCall}
               selectedCaller={state.selectedCaller}
               nextSerial={state.nextSerial}
               enteredRst={state.enteredRst}
               enteredNr={state.enteredNr}
+              enteredName={state.enteredName}
+              enteredNumber={state.enteredNumber}
+              myName={state.myName}
+              myNumber={state.myNumber}
               onCallChange={actions.setCurrentCall}
               onRstChange={actions.setEnteredRst}
               onNrChange={actions.setEnteredNr}
+              onNameChange={actions.setEnteredName}
+              onNumberChange={actions.setEnteredNumber}
               onEnter={qsoFlow.handleEnter}
               inputRef={inputRef}
               nrInputRef={nrInputRef}
-              callers={state.callers}
-              onSelectCaller={qsoFlow.selectCaller}
               isSending={audio.isSending}
             />
           </div>
         </div>
 
-        <LogDisplay log={state.log} />
+        <LogDisplay log={state.log} contestType={state.contestType} />
 
         <div className="bottom-controls">
           <BandControls
