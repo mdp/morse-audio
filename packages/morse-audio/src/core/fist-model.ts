@@ -42,6 +42,16 @@ export const FIST_PROFILES: Record<FistProfile, FistOptions> = {
     charGapStretchFraction: 0.12,
     charGapStretchRange: [1.3, 2.0],
   },
+  // Vibroplex bug, banana-boat swing. Mechanical pendulum keeps dits machine-tight,
+  // but dahs are manually held and famously dragged out ("dahhhh"). Minimal gap
+  // stretching: bug ops run legato character-to-character, not hesitant.
+  bug: {
+    jitter: 0.04,
+    dahBias: 0.4,
+    speedDriftWpmPerSec: 0.05,
+    charGapStretchFraction: 0.02,
+    charGapStretchRange: [1.1, 1.3],
+  },
   poor: {
     jitter: 0.20, // ~15-25%
     dahBias: -0.08,

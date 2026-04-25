@@ -1,5 +1,26 @@
 // Main API
 export { generateMorseAudio, calculateDuration } from './utils/morse-generator';
+export { generateRealisticMorseAudio } from './utils/realistic-generator';
+export type {
+  RealisticMorseOptions,
+  RealisticMorseResult,
+  RealisticQrnOptions,
+  RealisticBandpassOptions,
+} from './utils/realistic-generator';
+
+// SNR-calibrated mixing utilities (AGC-style constant-loudness model)
+export {
+  peakNormalize,
+  generateCalibratedNoise,
+  mixWithCalibratedNoise,
+  DEFAULT_SNR_REFERENCE_BANDWIDTH,
+  DEFAULT_REFERENCE_PEAK,
+  DEFAULT_OUTPUT_PEAK,
+} from './utils/snr-mixing';
+export type {
+  CalibratedNoiseOptions,
+  SnrMixOptions,
+} from './utils/snr-mixing';
 
 // Core Generator (primary API for realistic audio)
 export {

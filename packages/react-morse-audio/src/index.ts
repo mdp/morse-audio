@@ -56,6 +56,25 @@ export type {
   QsbOptions,
 } from 'morse-audio';
 
+// Realistic morse audio generator with full effects chain (AGC-calibrated SNR,
+// fist model, per-element effects, receiver bandpass).
+export { generateRealisticMorseAudio } from 'morse-audio';
+export type {
+  RealisticMorseOptions,
+  RealisticMorseResult,
+  RealisticQrnOptions,
+  RealisticBandpassOptions,
+} from 'morse-audio';
+
+// SNR-calibrated mixing primitives for custom pipelines.
+export {
+  peakNormalize,
+  generateCalibratedNoise,
+  mixWithCalibratedNoise,
+  DEFAULT_SNR_REFERENCE_BANDWIDTH,
+} from 'morse-audio';
+export type { CalibratedNoiseOptions, SnrMixOptions } from 'morse-audio';
+
 // Re-export streaming types from morse-audio
 export {
   createContestAudioEngine,

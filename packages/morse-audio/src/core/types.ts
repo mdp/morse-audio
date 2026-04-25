@@ -20,7 +20,7 @@ export type SampleRate = 8000 | 16000 | 22050 | 44100;
 /**
  * Fist profile for operator timing simulation
  */
-export type FistProfile = 'machine' | 'good' | 'average' | 'poor' | 'very_poor';
+export type FistProfile = 'machine' | 'good' | 'average' | 'bug' | 'poor' | 'very_poor';
 
 /**
  * Fist model configuration - simulates operator timing imperfections
