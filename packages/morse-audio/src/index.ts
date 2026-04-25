@@ -11,6 +11,7 @@ export type {
 // SNR-calibrated mixing utilities (AGC-style constant-loudness model)
 export {
   peakNormalize,
+  rmsNormalize,
   generateCalibratedNoise,
   mixWithCalibratedNoise,
   DEFAULT_SNR_REFERENCE_BANDWIDTH,

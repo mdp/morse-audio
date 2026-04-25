@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import {
   generateRealisticMorseAudio,
   peakNormalize,
+  rmsNormalize,
   mixWithCalibratedNoise,
   generateCalibratedNoise,
   DEFAULT_SNR_REFERENCE_BANDWIDTH,
+  DEFAULT_REFERENCE_PEAK,
   FIST_PROFILES,
 } from '../index';
 
@@ -37,20 +39,35 @@ describe('peakNormalize', () => {
   });
 });
 
+describe('rmsNormalize', () => {
+  it('scales samples so RMS matches the target', () => {
+    const s = new Float32Array(1024);
+    for (let i = 0; i < s.length; i++) s[i] = Math.sin(i * 0.5);
+    rmsNormalize(s, 0.5);
+    expect(rmsOf(s)).toBeCloseTo(0.5, 4);
+  });
+
+  it('is a no-op on a fully silent buffer', () => {
+    const s = new Float32Array(8);
+    rmsNormalize(s, 0.5);
+    expect(rmsOf(s)).toBe(0);
+  });
+});
+
 describe('generateCalibratedNoise', () => {
-  it('produces noise normalized to the target peak', () => {
+  it('RMS-normalizes the noise to match a sine of the reference peak', () => {
+    // Noise RMS should equal sine RMS at referenceSinePeak = peak / sqrt(2).
     const noise = generateCalibratedNoise({
       length: 22050,
       sampleRate: 22050,
       centerFrequency: 600,
-      targetPeak: 0.7,
+      referenceSinePeak: 0.8,
     });
-    expect(peakOf(noise)).toBeCloseTo(0.7, 5);
+    const expectedRms = 0.8 / Math.SQRT2;
+    expect(rmsOf(noise)).toBeCloseTo(expectedRms, 4);
   });
 
   it('honors a custom reference bandwidth', () => {
-    // Just verify it runs and produces nonzero output — the bandwidth maths
-    // are exercised by the SNR-improvement test below.
     const noise = generateCalibratedNoise({
       length: 22050,
       sampleRate: 22050,
@@ -59,6 +76,44 @@ describe('generateCalibratedNoise', () => {
     });
     expect(rmsOf(noise)).toBeGreaterThan(0);
   });
+});
+
+describe('SNR calibration accuracy', () => {
+  // The headline guarantee: requested SNR matches measured SNR within ~0.3 dB
+  // when measured in the reference bandwidth (i.e. before any narrower
+  // receiver filter). This is what makes a slider value of -18 dB actually
+  // deliver -18 dB, not some offset version of it.
+  const sampleRate = 22050;
+  const frequency = 600;
+  const length = sampleRate * 2;
+
+  function makeContinuousSine(amplitude = DEFAULT_REFERENCE_PEAK): Float32Array {
+    const samples = new Float32Array(length);
+    const twoPi = 2 * Math.PI;
+    let phase = 0;
+    for (let i = 0; i < length; i++) {
+      samples[i] = Math.sin(phase) * amplitude;
+      phase += (twoPi * frequency) / sampleRate;
+      if (phase >= twoPi) phase -= twoPi;
+    }
+    return samples;
+  }
+
+  function measureSnrDb(snrDb: number): number {
+    const signal = makeContinuousSine();
+    const noise = generateCalibratedNoise({ length, sampleRate, centerFrequency: frequency });
+    const signalGain = Math.pow(10, snrDb / 20);
+    const sigPower = (rmsOf(signal) * signalGain) ** 2;
+    const noisePower = rmsOf(noise) ** 2;
+    return 10 * Math.log10(sigPower / noisePower);
+  }
+
+  for (const requested of [-18, -12, -6, 0, 6, 12, 20, 30]) {
+    it(`requested ${requested} dB → measured within 0.3 dB`, () => {
+      const measured = measureSnrDb(requested);
+      expect(Math.abs(measured - requested)).toBeLessThan(0.3);
+    });
+  }
 });
 
 describe('mixWithCalibratedNoise', () => {

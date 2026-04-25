@@ -6,6 +6,42 @@ Both packages version in lockstep.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] — 2026-04-22
+
+### Fixed
+
+- **SNR calibration is now accurate.** In 1.3.0, `generateCalibratedNoise`
+  normalized noise by *peak* amplitude, but SNR is a power (RMS²) ratio. A
+  sine and noise with the same peak don't have the same RMS, so the requested
+  SNR was offset from the actual SNR by ~7 dB across the entire range. After
+  the fix, requested SNR matches measured SNR within 0.3 dB at every level
+  from -18 dB to +30 dB, measured in the reference bandwidth. Verified by a
+  new test suite (`SNR calibration accuracy`) and by the diagnostic script at
+  `packages/morse-audio/src/utils/snr-verify.ts`.
+
+  The fix: `generateCalibratedNoise` now RMS-normalizes the noise to
+  `referenceSinePeak / sqrt(2)` (the RMS of a sine at that peak) instead of
+  peak-normalizing to `referenceSinePeak`. The `mixWithCalibratedNoise` peak
+  normalization on the final mix is unchanged and continues to handle any
+  short-lived crackle peaks above ±1.0.
+
+### Changed
+
+- `generateCalibratedNoise` option `targetPeak` renamed to
+  `referenceSinePeak` to reflect its real meaning ("the peak of the sine wave
+  whose power the noise is matched to"). The default is unchanged (0.8). 1.3.0
+  was less than a day old when this rename landed and the old name produced
+  miscalibrated output, so any caller using it needed to change anyway.
+
+### Added
+
+- `rmsNormalize(samples, targetRms)` — exported in-place utility, the RMS
+  counterpart to `peakNormalize`.
+
+- `snr-verify.ts` — runnable diagnostic that prints requested vs measured SNR
+  for a range of values. Run it with `pnpm tsx packages/morse-audio/src/utils/snr-verify.ts`
+  to confirm the calibration on your machine.
+
 ## [1.3.0] — 2026-04-22
 
 This release is **additive** — no existing API is removed or changed. The headline

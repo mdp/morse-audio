@@ -69,6 +69,7 @@ export type {
 // SNR-calibrated mixing primitives for custom pipelines.
 export {
   peakNormalize,
+  rmsNormalize,
   generateCalibratedNoise,
   mixWithCalibratedNoise,
   DEFAULT_SNR_REFERENCE_BANDWIDTH,

@@ -35,10 +35,15 @@ import { applyBandwidthFilter } from './bandwidth-filter';
 export const DEFAULT_SNR_REFERENCE_BANDWIDTH = 2500;
 
 /**
- * Default peak amplitude the calibrated noise (and the clean signal) should
- * sit at before mixing. Matches the ~0.8 peak that the library's tone
- * synthesis produces, so SNR=0 dB literally means "signal and noise carry
- * equal peak amplitude in the reference bandwidth".
+ * Default sine-wave peak amplitude the calibrated noise is matched against.
+ * Matches the ~0.8 peak that the library's tone synthesis produces. The
+ * calibrated noise has RMS = `DEFAULT_REFERENCE_PEAK / sqrt(2)` so that
+ * SNR = 0 dB means "noise carries the same *power* as a sine of this peak in
+ * the reference bandwidth" — which is the radio-engineering definition.
+ *
+ * (Power ≠ peak. A sine with peak 0.8 has RMS 0.566 and power 0.32; noise
+ *  with peak 0.8 has much lower RMS. Calibrating against power, not peak, is
+ *  what makes a slider value of -18 dB actually deliver -18 dB SNR.)
  */
 export const DEFAULT_REFERENCE_PEAK = 0.8;
 
@@ -67,6 +72,28 @@ export function peakNormalize(samples: Float32Array, targetPeak: number): void {
   }
 }
 
+/**
+ * RMS-normalize samples in place to a target RMS amplitude.
+ *
+ * Use this — not {@link peakNormalize} — when calibrating noise for power-based
+ * SNR mixing, since SNR is a power (RMS²) ratio, not a peak ratio.
+ *
+ * @param samples - Buffer to normalize (modified in place)
+ * @param targetRms - Desired RMS amplitude (e.g. 0.566 to match a 0.8-peak sine)
+ */
+export function rmsNormalize(samples: Float32Array, targetRms: number): void {
+  let sumSq = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sumSq += samples[i] * samples[i];
+  }
+  const rms = Math.sqrt(sumSq / samples.length);
+  if (rms === 0) return;
+  const gain = targetRms / rms;
+  for (let i = 0; i < samples.length; i++) {
+    samples[i] *= gain;
+  }
+}
+
 export interface CalibratedNoiseOptions {
   /** Output buffer length in samples. */
   length: number;
@@ -76,8 +103,14 @@ export interface CalibratedNoiseOptions {
   centerFrequency: number;
   /** Reference noise bandwidth in Hz. Default: 2500 (SSB convention). */
   referenceBandwidth?: number;
-  /** Peak amplitude after normalization. Default: 0.8 (matches clean signal). */
-  targetPeak?: number;
+  /**
+   * Peak amplitude of the *equivalent sine* whose power the noise is matched
+   * to. Default: 0.8 (matches the library's standard tone amplitude). The
+   * noise's RMS is normalized to `referenceSinePeak / sqrt(2)` so that mixing
+   * at SNR = 0 dB delivers signal and noise of equal power — the
+   * radio-engineering definition of SNR.
+   */
+  referenceSinePeak?: number;
   /**
    * Number of bandpass filter stages used to enforce the reference bandwidth.
    * More stages = steeper skirts. Default: 4.
@@ -87,10 +120,17 @@ export interface CalibratedNoiseOptions {
 
 /**
  * Generate atmospheric noise (pink + crackle + heterodynes) pre-filtered to a
- * reference bandwidth and peak-normalized to a target level.
+ * reference bandwidth and *power-normalized* (RMS) so it can be SNR-mixed with
+ * a sine-tone signal of known peak amplitude.
  *
- * Use the returned buffer as the calibrated noise floor when mixing with a
- * signal via {@link mixWithCalibratedNoise}.
+ * The returned noise has RMS = `referenceSinePeak / sqrt(2)`, which equals the
+ * RMS of a sine wave at that peak. Pass it to {@link mixWithCalibratedNoise}
+ * to get audio whose measured SNR matches the requested SNR within the
+ * reference bandwidth.
+ *
+ * Note: because RMS-normalization can leave brief peaks above ±1.0 (atmospheric
+ * crackles!), the *peak normalization in {@link mixWithCalibratedNoise}* is
+ * what guarantees safe playback levels in the final mix.
  */
 export function generateCalibratedNoise(options: CalibratedNoiseOptions): Float32Array {
   const {
@@ -98,7 +138,7 @@ export function generateCalibratedNoise(options: CalibratedNoiseOptions): Float3
     sampleRate,
     centerFrequency,
     referenceBandwidth = DEFAULT_SNR_REFERENCE_BANDWIDTH,
-    targetPeak = DEFAULT_REFERENCE_PEAK,
+    referenceSinePeak = DEFAULT_REFERENCE_PEAK,
     filterStages = 4,
   } = options;
 
@@ -108,10 +148,10 @@ export function generateCalibratedNoise(options: CalibratedNoiseOptions): Float3
   const silent = new Float32Array(length);
   let noise = applyRadioEffects(silent, sampleRate, { qrn: { snr: 0 } });
 
-  // Restrict to the SNR reference bandwidth, then normalize so callers can
-  // reason about peak amplitude as the noise floor.
+  // Restrict to the SNR reference bandwidth, then RMS-normalize against the
+  // sine-tone reference so SNR is calibrated as a true power ratio.
   noise = applyBandwidthFilter(noise, centerFrequency, referenceBandwidth, sampleRate, filterStages);
-  peakNormalize(noise, targetPeak);
+  rmsNormalize(noise, referenceSinePeak / Math.SQRT2);
 
   return noise;
 }
