@@ -5,6 +5,8 @@ packages/*/dist/
 *.log
 .DS_Store
 .claude/
+*.tsbuildinfo
+package-lock.json
 *.gz
 *.jsonl
 *.npy
