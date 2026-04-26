@@ -642,13 +642,20 @@ export class TrainingSampleGenerator {
       finalAudio[i + leadingPadding] = audio[i];
     }
 
-    // Adjust character timings for the leading padding
+    // Adjust character (and element) timings for the leading padding
     const offsetMs = (leadingPadding / sampleRate) * 1000;
     characters = characters.map(c => ({
       ...c,
       startMs: c.startMs + offsetMs,
       endMs: c.endMs + offsetMs,
     }));
+    if (elements) {
+      elements = elements.map(e => ({
+        ...e,
+        startMs: e.startMs + offsetMs,
+        endMs: e.endMs + offsetMs,
+      }));
+    }
 
     // Build noise-only final audio (same padding noise, no CW signal)
     let noiseOnlyFinal: Float32Array | null = null;

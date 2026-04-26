@@ -829,6 +829,12 @@ async function generateBatchSamples(jsonlPath: string, metadataOutputPath: strin
         startMs: c.startMs,
         endMs: c.endMs,
       })),
+      elements: sample.metadata.elements?.map(e => ({
+        char: e.char,
+        elementType: e.elementType,
+        startMs: e.startMs,
+        endMs: e.endMs,
+      })),
     });
 
     // Progress indicator to stderr (so it doesn't interfere with stdout)
